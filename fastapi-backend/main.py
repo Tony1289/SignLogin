@@ -26,6 +26,28 @@ DB_NAME = os.getenv("DB_NAME")
 ADMIN_CODE_HASH = os.getenv("ADMIN_CODE_HASH")  # hashed using bcrypt
 
 app = FastAPI()
+# Absolute path to the React dist folder
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REACT_DIST = os.path.abspath(os.path.join(BASE_DIR, "../admin-login-app/dist"))
+
+# Mount static assets like CSS and JS (optional but useful for debugging)
+app.mount("/assets", StaticFiles(directory=os.path.join(REACT_DIST, "assets")), name="assets")
+
+# Serve static files like vite.svg (optional)
+app.mount("/static", StaticFiles(directory=REACT_DIST), name="static")
+
+# Serve React index.html for root
+@app.get("/")
+def serve_index():
+    return FileResponse(os.path.join(REACT_DIST, "index.html"))
+
+# Catch-all route to serve index.html for frontend routing
+@app.get("/{full_path:path}")
+def serve_vue_routes(full_path: str):
+    full_file_path = os.path.join(REACT_DIST, full_path)
+    if os.path.exists(full_file_path) and os.path.isfile(full_file_path):
+        return FileResponse(full_file_path)
+    return FileResponse(os.path.join(REACT_DIST, "index.html"))
 
 # Enable CORS (safe for development; restrict in production)
 app.add_middleware(
@@ -35,16 +57,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Serve React static files from 'dist'
-app.mount("/", StaticFiles(directory="dist", html=True), name="static")
-
-
-@app.get("/")
-def serve_react_app():
-    return FileResponse("dist/index.html")
-
-
 # ----------- Pydantic Models -----------
 class SignupData(BaseModel):
     username: str
